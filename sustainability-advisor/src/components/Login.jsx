@@ -7,7 +7,7 @@ export default function Login({ setUserId, goToRegister }) {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    const res = await fetch("http://localhost:5000/login", {
+    const res = await fetch("https://sustainability-advisor.onrender.com/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

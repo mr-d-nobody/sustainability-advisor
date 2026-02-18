@@ -5,7 +5,7 @@ export default function History({ userId }) {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/history/${userId}`)
+    fetch(`https://sustainability-advisor.onrender.com/history/${userId}`)
       .then(res => res.json())
       .then(setData);
   }, [userId]);
