@@ -5,11 +5,19 @@ export default function Navbar() {
   const [credits, setCredits] = useState(0);
 
   useEffect(() => {
+  const loadCredits = () => {
     const storedCredits = localStorage.getItem("credits");
-    if (storedCredits) {
-      setCredits(storedCredits);
-    }
-  }, []);
+    setCredits(storedCredits ? parseInt(storedCredits, 10) : 0);
+  };
+
+  loadCredits();
+
+  window.addEventListener("creditsUpdated", loadCredits);
+
+  return () => {
+    window.removeEventListener("creditsUpdated", loadCredits);
+  };
+}, []);
 
   return (
     <div className="fixed top-0 w-full z-50">
