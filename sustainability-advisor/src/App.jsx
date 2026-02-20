@@ -34,6 +34,27 @@ export default function App() {
       window.removeEventListener("goToRecharge", redirectToRecharge);
     };
   }, []);
+  useEffect(() => {
+  const syncCreditsFromBackend = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const res = await fetch("https://sustainability-advisor.onrender.com/user/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    localStorage.setItem("credits", data.credits);
+    window.dispatchEvent(new Event("creditsUpdated"));
+  };
+
+  syncCreditsFromBackend();
+}, []);
 
   const analyze = async (data) => {
 
