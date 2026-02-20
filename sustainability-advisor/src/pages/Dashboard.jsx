@@ -7,7 +7,7 @@ import ScoreCard from "../components/ScoreCard";
 import Recommendation from "../components/Recommendation";
 import Charts from "../components/Charts";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "https://sustainability-advisor.onrender.com";
 
 export default function Dashboard({ analyze, result }) {
 
