@@ -1,24 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import bg from "./assets/background.png";
-
+import Recharge from "./pages/Recharge";
 import Dashboard from "./pages/Dashboard";
 import HistoryPage from "./pages/HistoryPage";
 import Settings from "./pages/Settings";
-
+import About from "./pages/About";
 import Login from "./components/Login";
 import Register from "./components/Register";
-
+import AdminPanel from "./pages/AdminPanel";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
-
+import Transactions from "./pages/Transactions";
 export default function App() {
 
   const [result, setResult] = useState(null);
   const [page, setPage] = useState("dashboard");
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(
+    localStorage.getItem("userId")
+  );
   const [showRegister, setShowRegister] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // 🔥 Auto-redirect to Recharge page when credits are 0
+  useEffect(() => {
+    const redirectToRecharge = () => {
+      setPage("recharge");
+    };
+
+    window.addEventListener("goToRecharge", redirectToRecharge);
+
+    return () => {
+      window.removeEventListener("goToRecharge", redirectToRecharge);
+    };
+  }, []);
 
   const analyze = async (data) => {
 
@@ -89,59 +104,75 @@ export default function App() {
   /* DASHBOARD */
 
   return (
-    <div className="relative min-h-screen text-white">
+  <div className="relative min-h-screen text-white overflow-hidden">
 
-      {/* Background */}
+    {/* Background */}
+    <div
+      className="fixed inset-0 -z-20 bg-cover bg-center scale-105"
+      style={{ backgroundImage: `url(${bg})` }}
+    />
+    <div className="fixed inset-0 -z-10 bg-gradient-to-br 
+      from-green-950/70 via-black/70 to-green-900/70 backdrop-blur-sm" />
+
+    {/* Sidebar */}
+    <Sidebar
+      setPage={(p) => {
+        setPage(p);
+        setSidebarOpen(false);
+      }}
+      isOpen={sidebarOpen}
+    />
+
+    {/* Mobile Overlay */}
+    {sidebarOpen && (
       <div
-        className="fixed inset-0 -z-20 bg-cover bg-center"
-        style={{ backgroundImage: `url(${bg})` }}
+        className="fixed inset-0 bg-black/60 md:hidden z-30 backdrop-blur-sm"
+        onClick={() => setSidebarOpen(false)}
       />
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-green-900/60 via-black/60 to-green-800/60" />
+    )}
 
-      {/* Sidebar */}
-      <Sidebar
-        setPage={(p) => {
-          setPage(p);
-          setSidebarOpen(false);
+    {/* Main */}
+    <div className="md:ml-64 flex flex-col min-h-screen">
+
+      <Topbar
+        setUserId={(id) => {
+          localStorage.clear();
+          setUserId(id);
         }}
-        isOpen={sidebarOpen}
+        toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        setPage={setPage}
       />
 
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 md:hidden z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Page Content Container */}
+      <main className="flex-1 p-6 sm:p-8 transition-all duration-300">
 
-      {/* Main */}
-      <div className="md:ml-64">
+        <div className="max-w-6xl mx-auto">
 
-        <Topbar
-          setUserId={setUserId}
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
+          {/* Animated Page Switch */}
+          <div className="animate-fadeIn">
 
-        <div className="p-4 sm:p-6">
+            {page === "transactions" && <Transactions />}
+            {page === "dashboard" && (
+              <Dashboard analyze={analyze} result={result} />
+            )}
+            {page === "about" && <About />}
+            {page === "history" && <HistoryPage />}
+            {page === "settings" && <Settings setUserId={setUserId} />}
+            {page === "recharge" && <Recharge />}
+            {page === "admin" && <AdminPanel />}
 
-          {page === "dashboard" && (
-            <Dashboard analyze={analyze} result={result} />
-          )}
-
-          {page === "history" && (
-            <HistoryPage userId={userId} />
-          )}
-
-          {page === "settings" && (
-            <Settings setUserId={setUserId} />
-          )}
+          </div>
 
         </div>
 
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="text-center text-xs text-white/40 py-4 border-t border-white/10">
+        © {new Date().getFullYear()} Smart Sustainability Advisor · Built with 🌱
+      </footer>
 
     </div>
-  );
+  </div>
+);
 }
- 

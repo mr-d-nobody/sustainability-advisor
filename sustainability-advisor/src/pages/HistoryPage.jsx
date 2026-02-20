@@ -1,6 +1,6 @@
 import History from "../components/History";
 
-export default function HistoryPage({ userId }) {
+export default function HistoryPage() {
 
   return (
     <div className="p-4 sm:p-6 md:ml-64 pt-6 text-white">
@@ -9,7 +9,7 @@ export default function HistoryPage({ userId }) {
         History
       </h1>
 
-      <History userId={userId} />
+      <History />
 
     </div>
   );

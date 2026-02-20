@@ -28,19 +28,29 @@ export default function Dashboard({ analyze, result }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify(result),
         });
 
+        const data = await res.json();
+
         if (!res.ok) {
-          throw new Error("AI request failed");
+          setAiAdvice(data.error || "AI request failed.");
+          return;
         }
 
-        const data = await res.json();
         setAiAdvice(data.advice || "No advice generated.");
 
+        // Update remaining credits
+        if (data.remainingCredits !== undefined) {
+          localStorage.setItem("credits", data.remainingCredits);
+          window.dispatchEvent(new Event("creditsUpdated"));
+        }
+
       } catch (err) {
-        setAiAdvice("⚠️ AI service unavailable.");
+        console.error("AI error:", err);
+        setAiAdvice("AI server error.");
       } finally {
         setLoading(false);
       }
@@ -57,7 +67,6 @@ export default function Dashboard({ analyze, result }) {
 
       {result && (
         <>
-
           {/* Result + Score */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
             <ResultCard carbon={result.carbon} />
@@ -88,7 +97,7 @@ export default function Dashboard({ analyze, result }) {
               </p>
             )}
 
-            {aiAdvice && !loading && (
+            {!loading && aiAdvice && (
               <div className="prose prose-invert max-w-none text-green-200">
                 <ReactMarkdown>{aiAdvice}</ReactMarkdown>
               </div>

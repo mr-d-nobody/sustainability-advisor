@@ -1,14 +1,35 @@
 import { useEffect, useState } from "react";
 
-export default function History({ userId }) {
+export default function History() {
 
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch(`https://sustainability-advisor.onrender.com/history/${userId}`)
-      .then(res => res.json())
-      .then(setData);
-  }, [userId]);
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch("https://sustainability-advisor.onrender.com/history", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          // Token invalid or expired
+          localStorage.clear();
+          window.location.reload();
+          return;
+        }
+
+        const data = await res.json();
+        setData(data);
+
+      } catch (err) {
+        console.error("History error:", err);
+      }
+    };
+
+    fetchHistory();
+  }, []);
 
   return (
     <div className="bg-white/10 backdrop-blur-xl border border-white/20 
@@ -30,6 +51,14 @@ export default function History({ userId }) {
           </thead>
 
           <tbody>
+            {data.length === 0 && (
+              <tr>
+                <td colSpan="3" className="px-3 py-4 text-white/60">
+                  No history yet.
+                </td>
+              </tr>
+            )}
+
             {data.map((item, i) => (
               <tr key={i} className="text-green-300 border-t border-white/10">
                 <td className="px-3 py-2">{item.carbon}</td>

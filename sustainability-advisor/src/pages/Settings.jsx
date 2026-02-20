@@ -1,28 +1,69 @@
-export default function Settings({ setUserId }) {
+import { useState } from "react";
+
+export default function Settings() {
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleChangePassword = async () => {
+
+    const res = await fetch("https://sustainability-advisor.onrender.com/change-password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.error || "Something went wrong");
+      return;
+    }
+
+    setMessage("Password changed successfully ✅");
+    setCurrentPassword("");
+    setNewPassword("");
+  };
 
   return (
-    <div className="p-4 sm:p-6 md:ml-64 pt-6 text-white">
+    <div className="max-w-md mx-auto bg-white/10 backdrop-blur-xl 
+    border border-white/20 p-6 rounded-2xl shadow-xl mt-6 text-white">
 
-      <h1 className="text-lg sm:text-xl md:text-2xl font-semibold mb-6">
-        Settings
-      </h1>
+      <h2 className="text-lg font-semibold mb-4">Change Password</h2>
 
-      <div className="bg-white/10 backdrop-blur-xl border border-white/20 
-      p-4 sm:p-6 rounded-2xl shadow-xl max-w-md">
+      <input
+        type="password"
+        placeholder="Current Password"
+        value={currentPassword}
+        onChange={(e) => setCurrentPassword(e.target.value)}
+        className="w-full mb-3 p-2 rounded bg-white/20 border border-white/30"
+      />
 
-        <h2 className="text-sm sm:text-base text-white/70 mb-4">
-          Account
-        </h2>
+      <input
+        type="password"
+        placeholder="New Password"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        className="w-full mb-4 p-2 rounded bg-white/20 border border-white/30"
+      />
 
-        <button
-          onClick={() => setUserId(null)}
-          className="bg-red-500 hover:bg-red-400 transition 
-          px-4 py-2.5 rounded-lg text-black text-sm w-full sm:w-auto"
-        >
-          Logout
-        </button>
+      <button
+        onClick={handleChangePassword}
+        className="bg-green-500 hover:bg-green-400 w-full py-2 rounded text-black font-medium"
+      >
+        Update Password
+      </button>
 
-      </div>
+      {message && (
+        <p className="mt-4 text-sm text-green-300">{message}</p>
+      )}
 
     </div>
   );

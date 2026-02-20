@@ -6,24 +6,37 @@ export default function Login({ setUserId, goToRegister }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async () => {
-    const res = await fetch("https://sustainability-advisor.onrender.com/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+const handleLogin = async () => {
+  const res = await fetch("https://sustainability-advisor.onrender.com/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username, password }),
+  });
 
-    if (!res.ok) {
-      const text = await res.text();
-      alert(text || "Login failed");
-      return;
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    alert(text || "Login failed");
+    return;
+  }
 
-    const data = await res.json();
-    setUserId(data.userId);
-  };
+  const data = await res.json();
+
+  const parsedCredits = parseInt(data.credits, 10);
+  const safeCredits = isNaN(parsedCredits) ? 0 : parsedCredits;
+
+  // 🔐 Store identity + token
+  localStorage.setItem("userId", data.userId);
+  localStorage.setItem("username", data.username);
+  localStorage.setItem("credits", safeCredits);
+  localStorage.setItem("token", data.token);  
+  localStorage.setItem("role", data.role); 
+
+  window.dispatchEvent(new Event("creditsUpdated"));
+
+  setUserId(data.userId);
+};
 
   return (
     <div className="relative min-h-screen flex items-center justify-center text-white px-4">
@@ -57,7 +70,7 @@ export default function Login({ setUserId, goToRegister }) {
             required
             className="bg-white/20 border border-white/30 p-2.5 w-full mb-3 rounded-lg placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-green-400 text-sm"
             placeholder="Username"
-            onChange={(e)=>setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
           />
 
           <input
@@ -65,7 +78,7 @@ export default function Login({ setUserId, goToRegister }) {
             type="password"
             className="bg-white/20 border border-white/30 p-2.5 w-full mb-4 rounded-lg placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-green-400 text-sm"
             placeholder="Password"
-            onChange={(e)=>setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
           />
 
           <button
