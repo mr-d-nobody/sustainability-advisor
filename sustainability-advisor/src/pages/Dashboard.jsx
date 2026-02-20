@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 import InputForm from "../components/InputForm";
 import ResultCard from "../components/ResultCard";
 import ScoreCard from "../components/ScoreCard";
 import Recommendation from "../components/Recommendation";
 import Charts from "../components/Charts";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Dashboard({ analyze, result }) {
 
@@ -19,8 +22,9 @@ export default function Dashboard({ analyze, result }) {
 
       try {
         setLoading(true);
+        setAiAdvice("");
 
-        const res = await fetch("https://sustainability-advisor.onrender.com/ai-advice", {
+        const res = await fetch(`${API_URL}/ai-advice`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -28,11 +32,15 @@ export default function Dashboard({ analyze, result }) {
           body: JSON.stringify(result),
         });
 
+        if (!res.ok) {
+          throw new Error("AI request failed");
+        }
+
         const data = await res.json();
-        setAiAdvice(data.advice);
+        setAiAdvice(data.advice || "No advice generated.");
 
       } catch (err) {
-        setAiAdvice("AI service unavailable.");
+        setAiAdvice("⚠️ AI service unavailable.");
       } finally {
         setLoading(false);
       }
@@ -48,7 +56,6 @@ export default function Dashboard({ analyze, result }) {
       <InputForm onAnalyze={analyze} />
 
       {result && (
-
         <>
 
           {/* Result + Score */}
@@ -62,29 +69,29 @@ export default function Dashboard({ analyze, result }) {
             <Charts data={result} />
           </div>
 
-          {/* Recommendation */}
+          {/* Rule-based Recommendations */}
           <div className="mt-6">
             <Recommendation items={result.rec} />
           </div>
 
           {/* AI Advice */}
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 
-          p-4 sm:p-6 rounded-2xl shadow-xl mt-6">
+          p-5 sm:p-6 rounded-2xl shadow-xl mt-6">
 
-            <h3 className="text-base sm:text-lg mb-3">
+            <h3 className="text-lg font-semibold mb-4">
               🤖 AI Sustainability Advisor
             </h3>
 
             {loading && (
               <p className="text-green-300 animate-pulse">
-                Generating advice...
+                Generating intelligent recommendations...
               </p>
             )}
 
-            {aiAdvice && (
-              <p className="text-green-200 whitespace-pre-line leading-relaxed">
-                {aiAdvice}
-              </p>
+            {aiAdvice && !loading && (
+              <div className="prose prose-invert max-w-none text-green-200">
+                <ReactMarkdown>{aiAdvice}</ReactMarkdown>
+              </div>
             )}
 
           </div>

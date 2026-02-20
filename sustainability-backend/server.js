@@ -5,18 +5,28 @@ const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const OpenAI = require("openai");
 
 require("dotenv").config();
 
- 
-console.log("HF TOKEN LOADED:", process.env.HF_TOKEN ? "YES" : "NO");
+/* 🔥 IMPORTANT: Fix OpenAI timeout on Windows (IPv6 issue) */
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const db = new sqlite3.Database("./database.db");
+// ================= OPENAI SETUP =================
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000, // 30 seconds timeout
+});
+
+// ================= DATABASE =================
+
+const db = new sqlite3.Database("./database.db");
 
 // ================= CREATE TABLES =================
 
@@ -43,24 +53,20 @@ CREATE TABLE IF NOT EXISTS history (
 )
 `);
 
-
 // ================= HEALTH CHECK =================
 
 app.get("/ping", (req, res) => {
   res.json({ status: "Backend working" });
 });
 
-
 // ================= AI ROUTE =================
-
-const axios = require("axios");
 
 app.post("/ai-advice", async (req, res) => {
   try {
     const { electricity, water, waste, transport, renewable } = req.body;
 
     const prompt = `
-Give short actionable sustainability advice:
+Give short actionable sustainability advice.
 
 Electricity: ${electricity}
 Water: ${water}
@@ -68,36 +74,32 @@ Waste: ${waste}
 Transport: ${transport}
 Renewable: ${renewable}
 
-Respond in bullet points.
+Respond in bullet points under 150 words.
 `;
 
-    const response = await axios.post(
-      "https://router.huggingface.co/v1/chat/completions",
-      {
-        model: "HuggingFaceH4/zephyr-7b-beta",
-        messages: [
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 200,
-        temperature: 0.7
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    const response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a practical sustainability advisor giving clear, realistic advice.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_output_tokens: 200,
+    });
 
-    const advice = response.data.choices[0].message.content;
+    const advice = response.output[0].content[0].text;
 
     res.json({ advice });
 
   } catch (err) {
-    console.error("AI ERROR:", err.response?.data || err.message);
-    res.status(500).json({
-      advice: "AI failed to generate advice."
-    });
+    console.error("🚨 AI ERROR FULL:", err);
+    res.status(500).json({ advice: "AI failed to generate advice." });
   }
 });
 
@@ -115,10 +117,7 @@ app.post("/register", async (req, res) => {
     [username],
     async (err, user) => {
       if (err) return res.status(500).send("DB error");
-
-      if (user) {
-        return res.status(400).send("User already exists");
-      }
+      if (user) return res.status(400).send("User already exists");
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -148,12 +147,12 @@ app.post("/login", (req, res) => {
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(400).send("Wrong password");
 
-      const token = jwt.sign({ id: user.id }, "secret");
+      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+
       res.json({ token, userId: user.id });
     }
   );
 });
-
 
 // ================= SAVE =================
 
@@ -172,12 +171,14 @@ app.post("/save", (req, res) => {
       data.transport,
       data.renewable,
       data.carbon,
-      data.score
+      data.score,
     ],
-    () => res.send("Saved")
+    (err) => {
+      if (err) return res.status(500).send("DB error");
+      res.send("Saved");
+    }
   );
 });
-
 
 // ================= HISTORY =================
 
@@ -186,11 +187,11 @@ app.get("/history/:userId", (req, res) => {
     "SELECT * FROM history WHERE userId=? ORDER BY id DESC",
     [req.params.userId],
     (err, rows) => {
+      if (err) return res.status(500).send("DB error");
       res.json(rows);
     }
   );
 });
-
 
 // ================= START =================
 

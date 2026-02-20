@@ -50,7 +50,7 @@ export default function App() {
     if (rec.length === 0)
       rec.push("Excellent sustainability");
 
-    await fetch("https://sustainability-advisor.onrender.com/save", {
+    await fetch("http://localhost:5000/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
