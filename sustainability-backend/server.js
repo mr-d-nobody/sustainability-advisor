@@ -78,10 +78,13 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) return res.status(401).json({ error: "No token provided" });
+  if (!token)
+    return res.status(401).json({ error: "No token provided" });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: "Invalid token" });
+    if (err)
+      return res.status(403).json({ error: "Invalid token" });
+
     req.user = user;
     next();
   });
@@ -104,6 +107,31 @@ async function authorizeAdmin(req, res, next) {
     res.status(500).json({ error: "DB error" });
   }
 }
+
+/* ================= GET CURRENT USER ================= */
+
+app.get("/user/me", authenticateToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT username, credits, role FROM users WHERE id = $1",
+      [req.user.id]
+    );
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      username: rows[0].username,
+      credits: rows[0].credits,
+      role: rows[0].role
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "DB error" });
+  }
+});
 
 /* ================= REGISTER ================= */
 
@@ -171,42 +199,6 @@ app.post("/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("DB error");
-  }
-});
-
-/* ================= CHANGE PASSWORD ================= */
-
-app.post("/change-password", authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword)
-    return res.status(400).json({ error: "Missing fields" });
-
-  try {
-    const { rows } = await pool.query(
-      "SELECT password FROM users WHERE id = $1",
-      [req.user.id]
-    );
-
-    const user = rows[0];
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const valid = await bcrypt.compare(currentPassword, user.password);
-    if (!valid)
-      return res.status(401).json({ error: "Current password incorrect" });
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    await pool.query(
-      "UPDATE users SET password = $1 WHERE id = $2",
-      [hashedPassword, req.user.id]
-    );
-
-    res.json({ message: "Password updated successfully" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "DB error" });
   }
 });
 
@@ -297,7 +289,8 @@ app.get("/transactions", authenticateToken, async (req, res) => {
 
 /* ================= ADMIN RECHARGE ================= */
 
-app.post("/admin/recharge",
+app.post(
+  "/admin/recharge",
   authenticateToken,
   authorizeAdmin,
   async (req, res) => {
@@ -329,7 +322,16 @@ app.post("/admin/recharge",
         [userId, numericAmount, "credit", "Admin recharge"]
       );
 
-      res.json({ message: "Credits added successfully" });
+      const updated = await pool.query(
+        "SELECT credits FROM users WHERE id = $1",
+        [userId]
+      );
+
+      res.json({
+        message: "Credits added successfully",
+        newCredits: updated.rows[0].credits,
+        rechargedUser: username
+      });
 
     } catch (err) {
       console.error(err);
@@ -337,7 +339,6 @@ app.post("/admin/recharge",
     }
   }
 );
-  
 
 /* ================= START ================= */
 
