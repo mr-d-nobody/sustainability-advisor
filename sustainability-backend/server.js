@@ -9,7 +9,6 @@ const OpenAI = require("openai");
 
 require("dotenv").config();
 
-/* 🔥 IMPORTANT: Fix OpenAI timeout on Windows (IPv6 issue) */
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
@@ -21,12 +20,17 @@ app.use(express.json());
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 30000, // 30 seconds timeout
+  timeout: 30000,
 });
 
 // ================= DATABASE =================
 
-const db = new sqlite3.Database("./database.db");
+const path = require("path");
+
+const dbPath = path.resolve(__dirname, "database.db");
+console.log(" USING DB FILE:", dbPath);
+
+const db = new sqlite3.Database(dbPath);
 
 // ================= CREATE TABLES =================
 
@@ -34,7 +38,9 @@ db.run(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE,
-  password TEXT
+  password TEXT,
+  credits INTEGER DEFAULT 0,
+  role TEXT DEFAULT 'user'
 )
 `);
 
@@ -53,54 +59,84 @@ CREATE TABLE IF NOT EXISTS history (
 )
 `);
 
+db.run(`
+CREATE TABLE IF NOT EXISTS transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId INTEGER,
+  amount INTEGER,
+  type TEXT,          -- 'credit' or 'debit'
+  description TEXT,
+  date TEXT
+)
+`);
+
 // ================= HEALTH CHECK =================
 
 app.get("/ping", (req, res) => {
   res.json({ status: "Backend working" });
 });
 
-// ================= AI ROUTE =================
+// ================= AUTH MIDDLEWARE =================
 
-app.post("/ai-advice", async (req, res) => {
-  try {
-    const { electricity, water, waste, transport, renewable } = req.body;
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
-    const prompt = `
-Give short actionable sustainability advice.
+  if (!token) return res.status(401).json({ error: "No token provided" });
 
-Electricity: ${electricity}
-Water: ${water}
-Waste: ${waste}
-Transport: ${transport}
-Renewable: ${renewable}
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Invalid token" });
 
-Respond in bullet points under 150 words.
-`;
+    req.user = user;
+    next();
+  });
+}
 
-    const response = await openai.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a practical sustainability advisor giving clear, realistic advice.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_output_tokens: 200,
-    });
+function authorizeAdmin(req, res, next) {
+  const userId = req.user.id;
 
-    const advice = response.output[0].content[0].text;
+  db.get("SELECT role FROM users WHERE id = ?", [userId], (err, user) => {
+    if (err) return res.status(500).json({ error: "DB error" });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    next();
+  });
+}
+// ================= CHANGE PASSWORD =================
 
-    res.json({ advice });
+app.post("/change-password", authenticateToken, async (req, res) => {
+  console.log("Change password hit");
+  const userId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
 
-  } catch (err) {
-    console.error("🚨 AI ERROR FULL:", err);
-    res.status(500).json({ advice: "AI failed to generate advice." });
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "Missing fields" });
   }
+
+  db.get("SELECT password FROM users WHERE id = ?", [userId], async (err, user) => {
+
+    if (err) return res.status(500).json({ error: "DB error" });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const valid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!valid) {
+      return res.status(401).json({ error: "Current password incorrect" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    db.run(
+      "UPDATE users SET password = ? WHERE id = ?",
+      [hashedPassword, userId],
+      (err) => {
+        if (err) return res.status(500).json({ error: "Update failed" });
+
+        res.json({ message: "Password updated successfully" });
+      }
+    );
+  });
 });
 
 // ================= REGISTER =================
@@ -108,9 +144,8 @@ Respond in bullet points under 150 words.
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
-  if (!username || !password) {
+  if (!username || !password)
     return res.status(400).send("Missing fields");
-  }
 
   db.get(
     "SELECT * FROM users WHERE username = ?",
@@ -122,11 +157,11 @@ app.post("/register", async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       db.run(
-        "INSERT INTO users (username, password) VALUES (?, ?)",
-        [username, hashedPassword],
+        "INSERT INTO users (username, password, credits, role) VALUES (?, ?, ?, ?)",
+        [username, hashedPassword, 0, "user"],
         (err) => {
           if (err) return res.status(500).send("Insert error");
-          res.send("Registered");
+          res.send("Registered successfully");
         }
       );
     }
@@ -142,21 +177,116 @@ app.post("/login", (req, res) => {
     "SELECT * FROM users WHERE username=?",
     [username],
     async (err, user) => {
+      if (err) return res.status(500).send("DB error");
       if (!user) return res.status(400).send("No user");
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(400).send("Wrong password");
 
-      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+      const token = jwt.sign(
+        { id: user.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
 
-      res.json({ token, userId: user.id });
+      res.json({
+        token,
+        userId: user.id,
+        username: user.username,
+        credits: user.credits ?? 0,
+        role: user.role
+      });
     }
   );
+});
+//Transaction history route
+app.get("/transactions", authenticateToken, (req, res) => {
+
+  const userId = req.user.id;
+
+  db.all(
+    "SELECT * FROM transactions WHERE userId = ? ORDER BY id DESC",
+    [userId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "DB error" });
+      res.json(rows);
+    }
+  );
+});
+// ================= AI ROUTE =================
+
+app.post("/ai-advice", authenticateToken, async (req, res) => {
+  try {
+    const { electricity, water, waste, transport, renewable } = req.body;
+    const userId = req.user.id;
+
+    db.get("SELECT credits FROM users WHERE id = ?", [userId], async (err, user) => {
+      if (err) return res.status(500).json({ error: "DB error" });
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      if (user.credits <= 0) {
+        return res.status(403).json({
+          error: "No credits left. Contact owner to recharge."
+        });
+      }
+
+      const prompt = `
+Give short actionable sustainability advice.
+
+Electricity: ${electricity}
+Water: ${water}
+Waste: ${waste}
+Transport: ${transport}
+Renewable: ${renewable}
+
+Respond in bullet points under 150 words.
+`;
+
+      const response = await openai.responses.create({
+        model: "gpt-4o-mini",
+        input: [
+          {
+            role: "system",
+            content:
+              "You are a practical sustainability advisor giving clear advice.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_output_tokens: 200,
+      });
+
+      const advice = response.output[0].content[0].text;
+
+      db.run(
+        "UPDATE users SET credits = credits - 1 WHERE id = ?",
+        [userId],
+        () => {
+          db.run(
+            "INSERT INTO transactions (userId, amount, type, description, date) VALUES (?, ?, ?, ?, datetime('now'))",
+            [userId, 1, "debit", "AI advice usage"]
+          );
+        }
+      );
+
+      res.json({
+        advice,
+        remainingCredits: user.credits - 1
+      });
+    });
+
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    res.status(500).json({ error: "AI failed" });
+  }
 });
 
 // ================= SAVE =================
 
-app.post("/save", (req, res) => {
+app.post("/save", authenticateToken, (req, res) => {
+  const userId = req.user.id;
   const data = req.body;
 
   db.run(
@@ -164,7 +294,7 @@ app.post("/save", (req, res) => {
     (userId,electricity,water,waste,transport,renewable,carbon,score,date)
     VALUES (?,?,?,?,?,?,?,?,datetime('now'))`,
     [
-      data.userId,
+      userId,
       data.electricity,
       data.water,
       data.waste,
@@ -182,16 +312,61 @@ app.post("/save", (req, res) => {
 
 // ================= HISTORY =================
 
-app.get("/history/:userId", (req, res) => {
+app.get("/history", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+
   db.all(
     "SELECT * FROM history WHERE userId=? ORDER BY id DESC",
-    [req.params.userId],
+    [userId],
     (err, rows) => {
       if (err) return res.status(500).send("DB error");
       res.json(rows);
     }
   );
 });
+
+// ================= ADMIN RECHARGE =================
+
+app.post("/admin/recharge",
+  authenticateToken,
+  authorizeAdmin,
+  (req, res) => {
+
+    const { username, amount } = req.body;
+
+    console.log("Recharge request:", username, amount);
+
+    if (!username || !amount)
+      return res.status(400).json({ error: "Missing fields" });
+
+    db.run(
+      "UPDATE users SET credits = credits + ? WHERE username = ?",
+      [numericAmount, username],
+      function (err) {
+
+        if (err) {
+          console.error("Recharge DB error:", err);
+          return res.status(500).json({ error: "DB error" });
+        }
+
+        if (this.changes === 0) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+
+        db.get("SELECT id FROM users WHERE username = ?", [username], (err, user) => {
+
+          db.run(
+            "INSERT INTO transactions (userId, amount, type, description, date) VALUES (?, ?, ?, ?, datetime('now'))",
+            [user.id, numericAmount, "credit", "Admin recharge"]
+          );
+        });
+
+        res.json({ message: "Credits added successfully" });
+      }
+    );
+  }
+);
 
 // ================= START =================
 
