@@ -7,7 +7,7 @@ export default function History() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch("https://sustainability-advisor.onrender.com/history", {
+        const res = await fetch("http://localhost:5000/history", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },

@@ -6,7 +6,7 @@ export default function AdminPanel() {
   const [amount, setAmount] = useState("");
 
   const handleRecharge = async () => {
-    const res = await fetch("https://sustainability-advisor.onrender.com/admin/recharge", {
+    const res = await fetch("http://localhost:5000/admin/recharge", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

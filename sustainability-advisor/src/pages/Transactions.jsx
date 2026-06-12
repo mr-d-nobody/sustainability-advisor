@@ -5,7 +5,7 @@ export default function Transactions() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch("https://sustainability-advisor.onrender.com/transactions", {
+    fetch("http://localhost:5000/transactions", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`
       }
