@@ -45,9 +45,8 @@ export default function Topbar({ setUserId, toggleSidebar, setPage }) {
           className="flex items-center gap-2 group focus:outline-none text-left"
         >
           <span className="text-xl sm:text-2xl transform group-hover:scale-110 transition-transform duration-300">🌱</span>
-          <h1 className="text-base sm:text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-green-200 group-hover:to-green-400 transition-colors duration-300 truncate max-w-[120px] sm:max-w-none">
-            Smart Sustainability
-            <span className="hidden lg:inline"> Advisor</span>
+          <h1 className="text-sm sm:text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-green-200 group-hover:to-green-400 transition-colors duration-300 leading-tight">
+            Smart Sustainability Advisor
           </h1>
         </button>
       </div>
