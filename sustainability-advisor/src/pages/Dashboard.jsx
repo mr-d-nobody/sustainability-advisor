@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -7,7 +8,6 @@ import ScoreCard from "../components/ScoreCard";
 import Recommendation from "../components/Recommendation";
 import Charts from "../components/Charts";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Dashboard({ analyze, result }) {
 

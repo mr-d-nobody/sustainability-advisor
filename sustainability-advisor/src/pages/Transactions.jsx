@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useEffect, useState } from "react";
 
 export default function Transactions() {
@@ -5,7 +6,7 @@ export default function Transactions() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/transactions", {
+    fetch(`${API_URL}/transactions`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`
       }

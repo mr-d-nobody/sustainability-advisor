@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useState } from "react";
 
 export default function Settings() {
@@ -8,7 +9,7 @@ export default function Settings() {
 
   const handleChangePassword = async () => {
 
-    const res = await fetch("http://localhost:5000/change-password", {
+    const res = await fetch(`${API_URL}/change-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

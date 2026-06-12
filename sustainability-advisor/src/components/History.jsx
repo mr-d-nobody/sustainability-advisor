@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useEffect, useState } from "react";
 
 export default function History() {
@@ -7,7 +8,7 @@ export default function History() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch("http://localhost:5000/history", {
+        const res = await fetch(`${API_URL}/history`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },

@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useState } from "react";
 import bg from "../assets/login-bg.png";
 
@@ -12,7 +13,7 @@ export default function Register({ goToLogin }) {
       return;
     }
 
-    const res = await fetch("http://localhost:5000/register", {
+    const res = await fetch(`${API_URL}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

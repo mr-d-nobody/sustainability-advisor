@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useState } from "react";
 import bg from "../assets/login-bg.png";
 
@@ -7,7 +8,7 @@ export default function Login({ setUserId, goToRegister }) {
   const [password, setPassword] = useState("");
 
 const handleLogin = async () => {
-  const res = await fetch("http://localhost:5000/login", {
+  const res = await fetch(`${API_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

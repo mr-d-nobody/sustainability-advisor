@@ -1,3 +1,4 @@
+import { API_URL } from "./config";
 import { useState, useEffect } from "react";
 
 import bg from "./assets/background.png";
@@ -39,7 +40,7 @@ export default function App() {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const res = await fetch("http://localhost:5000/user/me", {
+    const res = await fetch(`${API_URL}/user/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -86,7 +87,7 @@ export default function App() {
     if (rec.length === 0)
       rec.push("Excellent sustainability");
 
-    await fetch("http://localhost:5000/save", {
+    await fetch(`${API_URL}/save`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

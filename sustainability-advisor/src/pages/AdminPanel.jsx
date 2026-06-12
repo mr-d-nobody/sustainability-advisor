@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import { useState } from "react";
 
 export default function AdminPanel() {
@@ -6,7 +7,7 @@ export default function AdminPanel() {
   const [amount, setAmount] = useState("");
 
   const handleRecharge = async () => {
-    const res = await fetch("http://localhost:5000/admin/recharge", {
+    const res = await fetch(`${API_URL}/admin/recharge`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
