@@ -8,7 +8,7 @@ export default function Settings() {
 
   const handleChangePassword = async () => {
 
-    const res = await fetch("https://sustainability-advisor.onrender.com/change-password", {
+    const res = await fetch("http://localhost:5000/change-password", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
